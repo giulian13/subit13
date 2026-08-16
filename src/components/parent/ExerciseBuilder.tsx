@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { Exercise, SubjectType, ExerciseFormat } from '../../types';
 import { db } from '../../services/storage';
 import { sounds } from '../../utils/audio';
-import { PlusCircle, Sparkles, BookOpen, Calculator, Eye, Check, Edit2, Trash2, X } from 'lucide-react';
+import { PlusCircle, BookOpen, Calculator, Eye, Check, Edit2, Trash2, X, ListPlus, FileSpreadsheet, ArrowDownCircle } from 'lucide-react';
 
 interface Props {
   onCreated: () => void;
@@ -11,7 +11,9 @@ interface Props {
 export const ExerciseBuilder: React.FC<Props> = ({ onCreated }) => {
   const [exercisesList, setExercisesList] = useState<Exercise[]>(db.getExercises());
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'single' | 'bulk_math'>('single');
 
+  // Stare Formular Unic
   const [subject, setSubject] = useState<SubjectType>('math');
   const [format, setFormat] = useState<ExerciseFormat>('multiple_choice');
   const [title, setTitle] = useState('');
@@ -19,6 +21,12 @@ export const ExerciseBuilder: React.FC<Props> = ({ onCreated }) => {
   const [prompt, setPrompt] = useState('');
   const [stars, setStars] = useState(2);
   const [hint, setHint] = useState('');
+
+  // Stare Import în Masă (Bulk Math)
+  const [bulkText, setBulkText] = useState(`5 + 3 = 8\n12 - 4 = 8\n6 x 7 = 42\n20 : 4 = 5\n9 + 7 = 16`);
+  const [bulkStars, setBulkStars] = useState(2);
+  const [bulkTopic, setBulkTopic] = useState('Calcul Rapid');
+  const [bulkImportSuccess, setBulkImportSuccess] = useState<number | null>(null);
 
   // Pentru Multiple Choice
   const [options, setOptions] = useState<string[]>(['', '', '', '']);
@@ -29,6 +37,109 @@ export const ExerciseBuilder: React.FC<Props> = ({ onCreated }) => {
 
   // Preview Mode
   const [showPreview, setShowPreview] = useState(false);
+
+  // Funcție pentru generarea inteligentă de opțiuni greșite pentru grilă
+  const generateWrongOptions = (correctAnswerNum: number): string[] => {
+    const wrong = new Set<number>();
+    const deltas = [1, -1, 2, -2, 3, -3, 10, -10, 4, -4];
+    for (const d of deltas) {
+      const candidate = correctAnswerNum + d;
+      if (candidate >= 0 && candidate !== correctAnswerNum) {
+        wrong.add(candidate);
+      }
+      if (wrong.size >= 3) break;
+    }
+    while (wrong.size < 3) {
+      wrong.add(Math.max(0, correctAnswerNum + Math.floor(Math.random() * 8) - 4));
+    }
+    return Array.from(wrong).slice(0, 3).map(String);
+  };
+
+  const handleBulkImport = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkText.trim()) {
+      alert('Introdu cel puțin o linie cu calcul și rezultat!');
+      return;
+    }
+
+    const lines = bulkText.split('\n').map(l => l.trim()).filter(Boolean);
+    let importedCount = 0;
+
+    lines.forEach((line, idx) => {
+      // Suportă formate ca: "5 + 3 = 8", "12 - 4 = 8", "6 * 7 = 42", "20 / 4 = 5", "8 + 6 = 14" sau separate prin ":" / ","
+      let equation = '';
+      let result = '';
+
+      if (line.includes('=')) {
+        const parts = line.split('=');
+        equation = parts[0].trim();
+        result = parts[1].trim();
+      } else if (line.includes('->')) {
+        const parts = line.split('->');
+        equation = parts[0].trim();
+        result = parts[1].trim();
+      } else if (line.includes(':') && !line.includes('+') && !line.includes('-')) {
+        const parts = line.split(':');
+        equation = parts[0].trim();
+        result = parts[1].trim();
+      }
+
+      if (!equation || !result) {
+        // Încercare de a calcula automat dacă există doar o expresie matematică (ex: "7 + 8")
+        try {
+          const cleanExpr = line.replace(/x/g, '*').replace(/÷/g, '/').replace(/:/g, '/');
+          const evalResult = Function(`"use strict"; return (${cleanExpr})`)();
+          if (typeof evalResult === 'number' && !isNaN(evalResult)) {
+            equation = line;
+            result = String(evalResult);
+          }
+        } catch {
+          return;
+        }
+      }
+
+      if (equation && result) {
+        const correctNum = parseFloat(result);
+        const wrongOpts = !isNaN(correctNum)
+          ? generateWrongOptions(correctNum)
+          : ['0', '10', '100'];
+
+        // Amestecăm opțiunile
+        const allOpts = [result, ...wrongOpts].sort(() => Math.random() - 0.5);
+
+        const newEx: Exercise = {
+          id: `ex_bulk_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 5)}`,
+          title: `Calcul: ${equation} = ?`,
+          subject: 'math',
+          topic: bulkTopic.trim() || 'Calcul Rapid',
+          difficulty: 1,
+          format: 'multiple_choice',
+          prompt: `Cât face: ${equation} = ?`,
+          stars: bulkStars,
+          data: {
+            options: allOpts,
+            correctAnswer: result,
+            hint: `Gândește-te pas cu pas la calculul: ${equation}`
+          },
+          isTemplate: false
+        };
+
+        db.saveExercise(newEx);
+        importedCount++;
+      }
+    });
+
+    if (importedCount > 0) {
+      sounds.playSuccess();
+      setBulkImportSuccess(importedCount);
+      setTimeout(() => setBulkImportSuccess(null), 4000);
+      refreshList();
+      onCreated();
+      setBulkText('');
+    } else {
+      alert('Nu s-a putut recunoaște niciun calcul. Format recomandat:\n5 + 3 = 8\n12 - 4 = 8\n6 x 7 = 42');
+    }
+  };
 
   const refreshList = () => {
     setExercisesList(db.getExercises());
@@ -193,7 +304,36 @@ export const ExerciseBuilder: React.FC<Props> = ({ onCreated }) => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {!editingId && (
+              <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('single')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeTab === 'single'
+                      ? 'bg-white text-indigo-700 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>Exercițiu Unic</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('bulk_math')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeTab === 'bulk_math'
+                      ? 'bg-white text-indigo-700 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <ListPlus className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Import Rapid Listă (Calcul & Rezultat)</span>
+                </button>
+              </div>
+            )}
+
             {editingId && (
               <button
                 type="button"
@@ -204,22 +344,25 @@ export const ExerciseBuilder: React.FC<Props> = ({ onCreated }) => {
                 <span>Anulează Editarea</span>
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setShowPreview(!showPreview)}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-colors ${
-                showPreview
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <Eye className="w-4 h-4" />
-              <span>{showPreview ? 'Ascunde Previzualizarea' : 'Previzualizare Live Copil'}</span>
-            </button>
+            
+            {activeTab === 'single' && (
+              <button
+                type="button"
+                onClick={() => setShowPreview(!showPreview)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                  showPreview
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <Eye className="w-4 h-4" />
+                <span>{showPreview ? 'Ascunde Previzualizarea' : 'Previzualizare Live Copil'}</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {!editingId && (
+        {!editingId && activeTab === 'single' && (
           <div className="mt-4 pt-4 border-t border-slate-100">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">
               Template-uri Rapide Sugerate:
@@ -258,6 +401,129 @@ export const ExerciseBuilder: React.FC<Props> = ({ onCreated }) => {
         )}
       </div>
 
+      {/* MODUL 2: IMPORT ÎN MASĂ MATEMATICĂ */}
+      {activeTab === 'bulk_math' && !editingId && (
+        <form onSubmit={handleBulkImport} className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-5 animate-pop">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-blue-600" />
+                <h3 className="font-bold text-base text-slate-800">
+                  Import Rapid Listă Exerciții Matematice
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Introdu o listă de operații (câte una pe rând), iar platforma va genera automat opțiunile de răspuns (grilă), calculul corect și indiciile.
+              </p>
+            </div>
+            <span className="text-xs font-black bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-200">
+              Bulk Generator
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Capitol / Subiect Comun
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: Adunare & Scădere până la 20, Tabla Înmulțirii"
+                value={bulkTopic}
+                onChange={(e) => setBulkTopic(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Recompensă Steluțe / Exercițiu (⭐)
+              </label>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[1, 2, 3, 5, 10].map((num) => (
+                  <button
+                    type="button"
+                    key={num}
+                    onClick={() => setBulkStars(num)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 border transition-all ${
+                      bulkStars === num
+                        ? 'bg-amber-500 text-white border-amber-600 shadow-sm scale-105'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>★</span>
+                    <span>{num}</span>
+                  </button>
+                ))}
+                <div className="flex items-center gap-1 ml-1">
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={bulkStars}
+                    onChange={(e) => setBulkStars(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-16 px-2 py-1 text-xs font-bold border border-slate-300 rounded-lg text-center focus:border-amber-500 outline-none"
+                  />
+                  <span className="text-xs text-slate-400 font-semibold">★</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                Listă Calcule (Format: <code className="bg-slate-100 px-1 py-0.5 rounded text-indigo-600 font-bold">operație = rezultat</code>)
+              </label>
+              <button
+                type="button"
+                onClick={() => setBulkText(`10 + 5 = 15\n25 - 7 = 18\n8 x 4 = 32\n36 : 6 = 6\n15 + 19 = 34\n50 - 15 = 35`)}
+                className="text-[11px] font-bold text-indigo-600 hover:underline"
+              >
+                Încarcă Exemplu
+              </button>
+            </div>
+            <textarea
+              rows={6}
+              required
+              placeholder="Exemplu:&#10;5 + 3 = 8&#10;12 - 4 = 8&#10;7 x 6 = 42&#10;40 : 5 = 8"
+              value={bulkText}
+              onChange={(e) => setBulkText(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-slate-300 font-mono text-sm leading-relaxed outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            />
+            <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+              <span>💡</span>
+              <span>Poți introduce operații cu <strong>+</strong>, <strong>-</strong>, <strong>x / *</strong> sau <strong>: / /</strong>. Răspunsurile greșite din grilă sunt generate inteligent în mod automat!</span>
+            </p>
+          </div>
+
+          {bulkImportSuccess && (
+            <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>Au fost importate cu succes {bulkImportSuccess} exerciții în baza de date!</span>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('single')}
+              className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold"
+            >
+              Anulează
+            </button>
+            <button
+              type="submit"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all active:scale-95"
+            >
+              <ArrowDownCircle className="w-4 h-4" />
+              <span>Generează & Salvează Toate Exercițiile</span>
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* MODUL 1: FORMULAR CREARE INDIVIDUALĂ */}
+      {(activeTab === 'single' || editingId) && (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Formular Creare / Editare */}
         <form onSubmit={handleSave} className={`space-y-5 ${showPreview ? 'lg:col-span-7' : 'lg:col-span-12'}`}>
@@ -428,23 +694,36 @@ export const ExerciseBuilder: React.FC<Props> = ({ onCreated }) => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Recompensă</label>
-                <div className="flex items-center gap-2">
-                  {[1, 2, 3].map((num) => (
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Recompensă Steluțe (⭐)
+                </label>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {[1, 2, 3, 4, 5, 10].map((num) => (
                     <button
                       type="button"
                       key={num}
                       onClick={() => setStars(num)}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 border transition-colors ${
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-0.5 border transition-all ${
                         stars === num
-                          ? 'bg-amber-500 text-white border-amber-600'
-                          : 'bg-slate-100 text-slate-600 border-slate-200'
+                          ? 'bg-amber-500 text-white border-amber-600 shadow-sm scale-105'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
-                      <Sparkles className="w-3 h-3" />
-                      <span>{num}★</span>
+                      <span>★</span>
+                      <span>{num}</span>
                     </button>
                   ))}
+                  <div className="flex items-center gap-1 ml-1">
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={stars}
+                      onChange={(e) => setStars(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-16 px-2 py-1 text-xs font-bold border border-slate-300 rounded-lg text-center focus:border-amber-500 outline-none"
+                    />
+                    <span className="text-xs text-slate-400 font-semibold">★</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -536,6 +815,7 @@ export const ExerciseBuilder: React.FC<Props> = ({ onCreated }) => {
           </div>
         )}
       </div>
+      )}
 
       {/* Lista Exercițiilor Create cu butoane Editare & Ștergere */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
