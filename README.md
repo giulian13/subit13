@@ -1,4 +1,4 @@
-# EduSmart - Platformă Educațională Interactivă (Matematică & Comunicare)
+# Subit13 - Platformă Educațională Interactivă (Matematică & Comunicare)
 
 O aplicație web modernă, optimizată complet pentru tablete și telefoane (Touch-First), dedicată părinților și copiilor.
 
