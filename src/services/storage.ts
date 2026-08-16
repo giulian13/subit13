@@ -8,35 +8,15 @@ import {
 } from './firebase';
 
 const INITIAL_PARENT: ParentUser = {
-  uid: 'parent_demo_1',
-  email: 'parinte@exemplu.com',
-  displayName: 'Părinte Demo',
+  uid: 'parent_local',
+  email: '',
+  displayName: '',
   pin: '1234',
   createdAt: new Date().toISOString()
 };
 
-const INITIAL_CHILDREN: Child[] = [
-  {
-    id: 'c1',
-    name: 'Matei',
-    age: 7,
-    avatar: '🚀',
-    pin: '1234',
-    totalStars: 42,
-    unlockedBadges: ['b1', 'b2', 'b4'],
-    themeColor: 'blue'
-  },
-  {
-    id: 'c2',
-    name: 'Sofia',
-    age: 6,
-    avatar: '🦄',
-    pin: '0000',
-    totalStars: 28,
-    unlockedBadges: ['b1', 'b3'],
-    themeColor: 'pink'
-  }
-];
+// Copii: listă goală la început — părintele îi adaugă el
+const INITIAL_CHILDREN: Child[] = [];
 
 const INITIAL_BADGES: Badge[] = [
   {
@@ -148,7 +128,7 @@ const INITIAL_EXERCISES: Exercise[] = [
     topic: 'Vocabular & Sensuri',
     difficulty: 1,
     format: 'multiple_choice',
-    prompt: 'Care este cuvântul cu sens OPUS pentru cuvântul „CALD”?',
+    prompt: 'Care este cuvântul cu sens OPUS pentru cuvântul „CALD"?',
     stars: 2,
     isTemplate: true,
     data: {
@@ -180,7 +160,7 @@ const INITIAL_EXERCISES: Exercise[] = [
     topic: 'Poezie & Rime',
     difficulty: 2,
     format: 'multiple_choice',
-    prompt: 'Ce cuvânt rimează frumos cu „SOARE”? ☀️',
+    prompt: 'Ce cuvânt rimează frumos cu „SOARE"? ☀️',
     stars: 3,
     isTemplate: true,
     data: {
@@ -207,79 +187,16 @@ const INITIAL_EXERCISES: Exercise[] = [
   }
 ];
 
-const INITIAL_ASSIGNMENTS: Assignment[] = [
-  {
-    id: 'a1',
-    childId: 'c1',
-    title: 'Aventura Matematică a lui Matei 🚀',
-    subject: 'math',
-    exerciseIds: ['m1', 'm2', 'm3'],
-    status: 'pending',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'a2',
-    childId: 'c1',
-    title: 'Lumea Cuvintelor Fermecate 📖',
-    subject: 'language',
-    exerciseIds: ['l1', 'l2', 'l3'],
-    status: 'pending',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'a3',
-    childId: 'c2',
-    title: 'Misiunea Sofiei: Numere & Litere 🦄',
-    subject: 'math',
-    exerciseIds: ['m1', 'l2'],
-    status: 'pending',
-    createdAt: new Date().toISOString()
-  }
-];
+// Teme: listă goală la început — părintele le creează el
+const INITIAL_ASSIGNMENTS: Assignment[] = [];
 
-const INITIAL_ATTEMPTS: AttemptHistory[] = [
-  {
-    id: 'at1',
-    childId: 'c1',
-    exerciseId: 'm1',
-    exerciseTitle: 'Numără merele din coș',
-    subject: 'math',
-    isCorrect: true,
-    attemptsCount: 1,
-    durationSeconds: 14,
-    starsEarned: 2,
-    timestamp: new Date(Date.now() - 86400000 * 2).toISOString()
-  },
-  {
-    id: 'at2',
-    childId: 'c1',
-    exerciseId: 'l1',
-    exerciseTitle: 'Găsește cuvântul cu sens opus',
-    subject: 'language',
-    isCorrect: true,
-    attemptsCount: 1,
-    durationSeconds: 22,
-    starsEarned: 2,
-    timestamp: new Date(Date.now() - 86400000 * 1).toISOString()
-  },
-  {
-    id: 'at3',
-    childId: 'c1',
-    exerciseId: 'm2',
-    exerciseTitle: 'Adunarea Stelară',
-    subject: 'math',
-    isCorrect: false,
-    attemptsCount: 2,
-    durationSeconds: 35,
-    starsEarned: 1,
-    timestamp: new Date(Date.now() - 3600000 * 4).toISOString()
-  }
-];
+// Încercări: listă goală la început
+const INITIAL_ATTEMPTS: AttemptHistory[] = [];
 
 class StorageService {
   private get<T>(key: string, defaultValue: T): T {
     try {
-      const data = localStorage.getItem(`edusmart_${key}`);
+      const data = localStorage.getItem(`subit_${key}`);
       return data ? JSON.parse(data) : defaultValue;
     } catch {
       return defaultValue;
@@ -288,7 +205,7 @@ class StorageService {
 
   private set<T>(key: string, value: T): void {
     try {
-      localStorage.setItem(`edusmart_${key}`, JSON.stringify(value));
+      localStorage.setItem(`subit_${key}`, JSON.stringify(value));
     } catch (e) {
       console.error('Storage save error:', e);
     }
