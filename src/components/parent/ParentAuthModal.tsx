@@ -183,7 +183,7 @@ export const ParentAuthModal: React.FC<Props> = ({ onSuccess, onCancel }) => {
               <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                 <span>
-                  Instrucțiunile au fost trimise! (PIN curent în mod demonstrativ: <strong>{parentProfile.pin}</strong>)
+                  Instrucțiunile de resetare au fost trimise pe email!
                 </span>
               </div>
             ) : (
@@ -266,7 +266,11 @@ export const ParentAuthModal: React.FC<Props> = ({ onSuccess, onCancel }) => {
               </button>
 
               <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-                <span>Cod PIN demo: <strong>{parentProfile.pin || '1234'}</strong></span>
+                {parentProfile.pin === '1234' ? (
+                  <span>Cod PIN demo: <strong>1234</strong></span>
+                ) : (
+                  <span></span>
+                )}
                 <button
                   type="button"
                   onClick={() => setIsResetMode(true)}

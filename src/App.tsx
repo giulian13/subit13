@@ -7,7 +7,7 @@ import { AvatarPinSelector } from './components/kid/AvatarPinSelector';
 import { KidDashboard } from './components/kid/KidDashboard';
 
 export function App() {
-  const [viewMode, setViewMode] = useState<'kid_login' | 'kid_play' | 'parent'>('parent');
+  const [viewMode, setViewMode] = useState<'kid_login' | 'kid_play' | 'parent'>('kid_login');
   const [activeChild, setActiveChild] = useState<Child | null>(null);
   const [childrenList, setChildrenList] = useState<Child[]>(db.getChildren());
 

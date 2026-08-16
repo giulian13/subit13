@@ -61,7 +61,7 @@ export const AvatarPinSelector: React.FC<Props> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 bg-white/20 backdrop-blur-md px-3.5 py-1.5 rounded-full">
           <Sparkles className="w-5 h-5 text-yellow-300" />
-          <span className="font-extrabold text-sm tracking-wide">EduSmart Kids</span>
+          <span className="font-extrabold text-sm tracking-wide">SubIT Kids</span>
         </div>
 
         <button
@@ -146,9 +146,11 @@ export const AvatarPinSelector: React.FC<Props> = ({
                   {digit}
                 </button>
               ))}
-              <div className="flex items-center justify-center text-xs text-slate-400 font-bold">
-                Cod: {selectedChild.pin}
-              </div>
+              {selectedChild.pin === '0000' && (
+                <div className="flex items-center justify-center text-xs text-slate-400 font-bold">
+                  Cod implicit: 0000
+                </div>
+              )}
               <button
                 onClick={() => handlePinPress('0')}
                 className="btn-bouncy h-14 rounded-2xl bg-indigo-50 hover:bg-indigo-100 border-2 border-indigo-200 text-indigo-950 font-black text-2xl flex items-center justify-center active:bg-indigo-200"

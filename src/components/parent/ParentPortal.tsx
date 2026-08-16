@@ -4,7 +4,8 @@ import { db } from '../../services/storage';
 import { ChildManager } from './ChildManager';
 import { ExerciseBuilder } from './ExerciseBuilder';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
-import { logoutParent, isFirebaseConfigured } from '../../services/firebase';
+import { logoutParent } from '../../services/firebase';
+import { SyncIndicator } from './SyncIndicator';
 import { sounds } from '../../utils/audio';
 import { 
   Users, 
@@ -139,20 +140,15 @@ export const ParentPortal: React.FC<Props> = ({ onSwitchToKidMode, onLockParentP
               E
             </div>
             <div>
-              <h1 className="font-extrabold text-slate-800 text-lg leading-tight flex items-center gap-2">
-                <span>EduSmart Studio</span>
-                <span className={`text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-md flex items-center gap-1 ${
-                  isFirebaseConfigured ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                }`}>
-                  <Cloud className="w-3 h-3" />
-                  {isFirebaseConfigured ? 'Cloud Sync (Firebase)' : 'Mod Local'}
-                </span>
+              <h1 className="font-extrabold text-slate-800 text-lg leading-tight">
+                SubIT Studio
               </h1>
               <p className="text-xs text-slate-400">Autentificat ca: {parentProfile.email}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            <SyncIndicator />
             {childrenList.length > 0 && (
               <button
                 onClick={() => {
